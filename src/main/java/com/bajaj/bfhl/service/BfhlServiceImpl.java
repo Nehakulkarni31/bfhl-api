@@ -104,7 +104,7 @@ public class BfhlServiceImpl implements BfhlService {
             sum = sum.add(n);
             // For odd/even: use the integer part
             BigDecimal intPart = n.setScale(0, RoundingMode.DOWN);
-            if (intPart.remainder(BigDecimal.TWO).abs().compareTo(BigDecimal.ZERO) != 0) {
+            if (intPart.remainder(new BigDecimal("2")).abs().compareTo(BigDecimal.ZERO) != 0) {
                 oddNumbers.add(formatNumber(n));
             } else {
                 evenNumbers.add(formatNumber(n));
