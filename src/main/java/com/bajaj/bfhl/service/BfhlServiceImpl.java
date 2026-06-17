@@ -69,53 +69,75 @@ public class BfhlServiceImpl implements BfhlService {
                 case "SPECIAL" -> specialCharacters.add(element);
 
                 case "ALPHANUMERIC" -> {
-                    // Extract contiguous letter groups (e.g. "Test99"→"TEST", "A1B2"→"A","B")
-                    // Digits do NOT contribute to numbers per spec examples
-                    StringBuilder group = new StringBuilder();
+                    // Extract both contiguous letter groups AND contiguous digit groups
+                    StringBuilder alphaGroup = new StringBuilder();
+                    StringBuilder numGroup = new StringBuilder();
+
                     for (char c : element.toCharArray()) {
                         if (Character.isLetter(c)) {
-                            group.append(c);
-                        } else {
-                            if (group.length() > 0) {
-                                String g = group.toString().toUpperCase();
+                            alphaGroup.append(c);
+                            // If we were tracking numbers, flush them to the numbers list
+                            if (numGroup.length() > 0) {
+                                numbers.add(new BigDecimal(numGroup.toString()));
+                                numGroup.setLength(0);
+                            }
+                        } else if (Character.isDigit(c)) {
+                            numGroup.append(c);
+                            // If we were tracking letters, flush them to the alphabets list
+                            if (alphaGroup.length() > 0) {
+                                String g = alphaGroup.toString().toUpperCase();
                                 alphabetsField.add(g);
                                 for (char lc : g.toCharArray()) {
                                     individualChars.add(String.valueOf(lc));
                                 }
-                                group.setLength(0);
+                                alphaGroup.setLength(0);
+                            }
+                        } else {
+                            // If it's a random symbol inside the alphanumeric string, flush both
+                            if (alphaGroup.length() > 0) {
+                                String g = alphaGroup.toString().toUpperCase();
+                                alphabetsField.add(g);
+                                for (char lc : g.toCharArray()) {
+                                    individualChars.add(String.valueOf(lc));
+                                }
+                                alphaGroup.setLength(0);
+                            }
+                            if (numGroup.length() > 0) {
+                                numbers.add(new BigDecimal(numGroup.toString()));
+                                numGroup.setLength(0);
                             }
                         }
                     }
-                    // flush remaining group
-                    if (group.length() > 0) {
-                        String g = group.toString().toUpperCase();
+                    
+                    // Final flush for whatever is left at the end of the string
+                    if (alphaGroup.length() > 0) {
+                        String g = alphaGroup.toString().toUpperCase();
                         alphabetsField.add(g);
                         for (char lc : g.toCharArray()) {
                             individualChars.add(String.valueOf(lc));
                         }
+                    }
+                    if (numGroup.length() > 0) {
+                        numbers.add(new BigDecimal(numGroup.toString()));
                     }
                 }
             }
         }
 
         // ── 5. Process numbers ────────────────────────────────────────────────
-        // Only INTEGER values go into odd/even classification (decimals excluded)
         List<String> oddNumbers = new ArrayList<>();
         List<String> evenNumbers = new ArrayList<>();
         BigDecimal sum = BigDecimal.ZERO;
 
         for (BigDecimal n : numbers) {
             sum = sum.add(n);
-            // Only classify as odd/even if it has no fractional part
             if (n.stripTrailingZeros().scale() <= 0) {
-                // Safely check odd/even for arbitrarily large numbers to prevent ArithmeticException
                 if (n.remainder(new BigDecimal("2")).compareTo(BigDecimal.ZERO) == 0) {
                     evenNumbers.add(formatNumber(n));
                 } else {
                     oddNumbers.add(formatNumber(n));
                 }
             }
-            // decimal numbers contribute to sum/largest/smallest but not odd/even
         }
 
         String sumStr = formatNumber(sum);
